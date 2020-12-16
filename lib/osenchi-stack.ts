@@ -1,5 +1,11 @@
-import * as s3 from '@aws-cdk/aws-s3';
 import * as cdk from '@aws-cdk/core';
+import * as s3 from '@aws-cdk/aws-s3';
+import * as sns from '@aws-cdk/aws-sns';
+import * as subscriptions from '@aws-cdk/aws-sns-subscriptions';
+
+
+require('dotenv').config();
+const env = process.env;
 
 export class OsenchiStack extends cdk.Stack {
   constructor(scope: cdk.Construct, id: string, props?: cdk.StackProps) {
@@ -12,5 +18,12 @@ export class OsenchiStack extends cdk.Stack {
     const outputBucket = new s3.Bucket(this, 'OsenchiOutputBucket', {
       bucketName: 'osenchi-outputbucket'
     });
+
+    const emailTopic = new sns.Topic(this, 'Topic', {
+      topicName: 'osenchi-topic'
+    });
+
+    const email = <string>env.EMAIL;
+    emailTopic.addSubscription(new subscriptions.EmailSubscription(email));
   }
 }
