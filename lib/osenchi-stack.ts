@@ -7,6 +7,8 @@ import * as subscriptions from '@aws-cdk/aws-sns-subscriptions';
 import * as cloudtrail from '@aws-cdk/aws-cloudtrail';
 import * as events from '@aws-cdk/aws-events';
 import * as targets from '@aws-cdk/aws-events-targets';
+import * as lambda from '@aws-cdk/aws-lambda';
+import * as iam from '@aws-cdk/aws-iam';
 
 require('dotenv').config();
 const env = process.env;
@@ -70,5 +72,36 @@ export class OsenchiStack extends cdk.Stack {
 
     const target = new targets.SfnStateMachine(stateMachine);
     rule.addTarget(target);
+
+    const detectionFunc = new lambda.Function(this, 'DetectionFunc', {
+      functionName: 'osenchi-detect-sentiment',
+      code: lambda.Code.fromAsset('functions/detect-sentiment', {
+        exclude: ['*.ts'],
+      }),
+      handler: 'index.handler',
+      runtime: lambda.Runtime.NODEJS_12_X,
+      timeout: cdk.Duration.minutes(5),
+      environment: {
+        DEST_BUCKET: outputBucket.bucketName
+      },
+    });
+
+    const deleteionFunc = new lambda.Function(this, 'DeletionFunc', {
+      functionName: 'osenchi-delete-object',
+      code: lambda.Code.fromAsset('functions/delete-object', {
+        exclude: ['*.ts'],
+      }),
+      handler: 'index.handler',
+      runtime: lambda.Runtime.NODEJS_12_X,
+    })
+
+    inputBucket.grantRead(detectionFunc);
+    outputBucket.grantWrite(detectionFunc);
+    const policy = new iam.PolicyStatement({
+      resources: ['*'],
+      actions: ['complehend:BatchDetectSentiment'],
+    });
+    detectionFunc.addToRolePolicy(policy);
+    inputBucket.grantDelete(deletionFunc);
   }
 }
