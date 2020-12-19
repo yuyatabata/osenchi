@@ -5,6 +5,8 @@ import * as s3 from '@aws-cdk/aws-s3';
 import * as sns from '@aws-cdk/aws-sns';
 import * as subscriptions from '@aws-cdk/aws-sns-subscriptions';
 import * as cloudtrail from '@aws-cdk/aws-cloudtrail';
+import * as events from '@aws-cdk/aws-events';
+import * as targets from '@aws-cdk/aws-events-targets';
 
 require('dotenv').config();
 const env = process.env;
@@ -41,15 +43,32 @@ export class OsenchiStack extends cdk.Stack {
     });
 
     const logBucket = new s3.Bucket(this, 'LogBucket', {
-      bucketName: 'osenchi-logbucket'
-    })
+      bucketName: 'tabata-osenchi-logbucket'
+    });
 
     const trail = new cloudtrail.Trail(this, 'Trail', {
       bucket: logBucket,
       isMultiRegionTrail: false
     });
-    trail.addS3EventSelector([`arn:aws:s3:::${inputBucket.bucketName}/`], {
+
+    trail.addS3EventSelector([{ bucket: inputBucket }], {
       readWriteType: cloudtrail.ReadWriteType.WRITE_ONLY,
     });
+
+    const rule = new events.Rule(this, 'EventRule', {
+      eventPattern: {
+        source: ['aws.s3'],
+        detail: {
+          'eventSource': ['s3.amazonaws.com'],
+          'eventName': ['PutObject'],
+          'requestParameters': {
+            'bucketName': [inputBucket.bucketName]
+          }
+        }
+      }
+    });
+
+    const target = new targets.SfnStateMachine(stateMachine);
+    rule.addTarget(target);
   }
 }
