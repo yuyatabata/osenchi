@@ -4,15 +4,36 @@ const COMPREHEND_BATCH_SIZE = 25;
 const s3 = new aws.S3();
 const comprehend = new aws.Comprehend();
 
+export interface IJobParameter {
+    id: string;
+    srcBucket: string;
+    objectKey: string;
+    destBucket: string;
+}
+
+interface IComprehend {
+    id: string;
+    topic: string;
+    language: string;
+    content: string;
+    sentiment: string;
+    score?: {
+        positive: number;
+        negative: number;
+        neutral: number;
+        mixed: number;
+    };
+}
+
 export class JobExecutor {
     public static async execute(job: IJobParameter): Promise<void> {
-        const item = await JobExecutor.getItems(job.srcBucket, job.objectKey);
-        const dict = dict JobExecutor.divideByLanguage(item);
+        const items = await JobExecutor.getItems(job.srcBucket, job.objectKey);
 
-        for (const tpl of dict) {
-            await JobExecutor.detectSentiment(tpl[0], tpl[1]);
+        const dict = JobExecutor.divideByLanguage(items);
+
+        for (const ary of dict) {
+            await JobExecutor.detectSentiment(ary[0], ary[1]);
         }
-
         await JobExecutor.putJsonLines(job.destBucket, job.objectKey, items);
     }
 
@@ -34,6 +55,7 @@ export class JobExecutor {
                 }
             });
         }
+
         return new Promise(resolve => {
             resolve(items);
         });
@@ -45,7 +67,7 @@ export class JobExecutor {
         items.forEach(item => {
             const key = item.language;
             const list = dict.get(key) || [];
-            list.push(key, list);
+            list.push(item);
             dict.set(key, list);
         });
 
@@ -61,7 +83,7 @@ export class JobExecutor {
         for (const list of blocks) {
             const res = await comprehend
                 .BatchDetectSentiment({
-                    TextList: list.map(x => x.content),
+                    TextList: list.map(x => x['content']),
                     LanguageCode: language,
                 })
                 .promise();

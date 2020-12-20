@@ -39,11 +39,6 @@ export class OsenchiStack extends cdk.Stack {
       }),
     });
 
-    const stateMachine = new sfn.StateMachine(this, 'OsenchiStateMachine', {
-      definition: successTask,
-      timeout: cdk.Duration.minutes(30)
-    });
-
     const logBucket = new s3.Bucket(this, 'LogBucket', {
       bucketName: 'tabata-osenchi-logbucket'
     });
@@ -70,8 +65,6 @@ export class OsenchiStack extends cdk.Stack {
       }
     });
 
-    const target = new targets.SfnStateMachine(stateMachine);
-    rule.addTarget(target);
 
     const detectionFunc = new lambda.Function(this, 'DetectionFunc', {
       functionName: 'osenchi-detect-sentiment',
@@ -86,7 +79,7 @@ export class OsenchiStack extends cdk.Stack {
       },
     });
 
-    const deleteionFunc = new lambda.Function(this, 'DeletionFunc', {
+    const deletionFunc = new lambda.Function(this, 'DeletionFunc', {
       functionName: 'osenchi-delete-object',
       code: lambda.Code.fromAsset('functions/delete-object', {
         exclude: ['*.ts'],
@@ -99,9 +92,39 @@ export class OsenchiStack extends cdk.Stack {
     outputBucket.grantWrite(detectionFunc);
     const policy = new iam.PolicyStatement({
       resources: ['*'],
-      actions: ['complehend:BatchDetectSentiment'],
+      actions: ['comprehend:BatchDetectSentiment'],
     });
     detectionFunc.addToRolePolicy(policy);
     inputBucket.grantDelete(deletionFunc);
+
+    const sentimentTask = new sfn.Task(this, 'DetectSentiment', {
+      task: new tasks.InvokeFunction(detectionFunc),
+    });
+
+    const deleteTask = new sfn.Task(this, 'DeleteObject', {
+      task: new tasks.InvokeFunction(deletionFunc),
+    });
+
+    const errorTask = new sfn.Task(this, 'SendErrorMail', {
+      task: new tasks.PublishToTopic(emailTopic, {
+        subject: `Osenchi Error`,
+        message: sfn.TaskInput.fromDataAt('$.*'),
+      }),
+    });
+
+    const mainFlow = sentimentTask.next(deleteTask).next(successTask);
+    const parallel = new sfn.Parallel(this, 'Parallel');
+    parallel.branch(mainFlow);
+    parallel.addCatch(errorTask, { resultPath: '$.error' });
+
+    const stateMachine = new sfn.StateMachine(this, 'OsenchiStateMachine', {
+      definition: parallel,
+      timeout: cdk.Duration.minutes(30)
+    });
+  
+    const target = new targets.SfnStateMachine(stateMachine);
+    rule.addTarget(target);
+
   }
+
 }
