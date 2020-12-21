@@ -1,7 +1,4 @@
-import * as sfn from '@aws-cdk/aws-stepfunctions';
-import * as tasks from '@aws-cdk/aws-stepfunctions-tasks';
 import * as cdk from '@aws-cdk/core';
-import * as s3 from '@aws-cdk/aws-s3';
 import * as sns from '@aws-cdk/aws-sns';
 import * as subscriptions from '@aws-cdk/aws-sns-subscriptions';
 import * as cloudtrail from '@aws-cdk/aws-cloudtrail';
@@ -9,6 +6,9 @@ import * as events from '@aws-cdk/aws-events';
 import * as targets from '@aws-cdk/aws-events-targets';
 import * as lambda from '@aws-cdk/aws-lambda';
 import * as iam from '@aws-cdk/aws-iam';
+import * as sfn from '@aws-cdk/aws-stepfunctions';
+import * as tasks from '@aws-cdk/aws-stepfunctions-tasks';
+import * as s3 from '@aws-cdk/aws-s3';
 
 require('dotenv').config();
 const env = process.env;
@@ -55,6 +55,9 @@ export class OsenchiStack extends cdk.Stack {
     const rule = new events.Rule(this, 'EventRule', {
       eventPattern: {
         source: ['aws.s3'],
+        detailType: [
+          "AWS API Call via CloudTrail"
+        ],
         detail: {
           'eventSource': ['s3.amazonaws.com'],
           'eventName': ['PutObject'],
@@ -75,7 +78,7 @@ export class OsenchiStack extends cdk.Stack {
       runtime: lambda.Runtime.NODEJS_12_X,
       timeout: cdk.Duration.minutes(5),
       environment: {
-        DEST_BUCKET: outputBucket.bucketName
+        DEST_BUCKET: outputBucket.bucketName,
       },
     });
 
