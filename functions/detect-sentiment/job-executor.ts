@@ -1,4 +1,4 @@
-import * as aws from 'aws-sdk';
+const aws = require('aws-sdk');
 
 const COMPREHEND_BATCH_SIZE = 25;
 const s3 = new aws.S3();
@@ -48,7 +48,7 @@ export class JobExecutor {
 
         if (res.Body) {
             const lines = res.Body.toString().split(/\r?\n/);
-            lines.forEach(text => {
+            lines.forEach((text: string) => {
                 if (text) {
                     const obj: IComprehend = JSON.parse(text);
                     items.push(obj);    
@@ -88,7 +88,7 @@ export class JobExecutor {
                 })
                 .promise();
             
-            res.ResultList.forEach(result => {
+            res.ResultList.forEach((result: { Index: any; Sentiment: string; SentimentScore: { Positive: any; Negatime: any; Neutral: any; Mixed: any; }; }) => {
                 const index = result.Index;
                 if (index !== undefined) {
                     const doc = list[index];

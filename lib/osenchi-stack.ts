@@ -76,7 +76,7 @@ export class OsenchiStack extends cdk.Stack {
       }),
       handler: 'index.handler',
       runtime: lambda.Runtime.NODEJS_12_X,
-      timeout: cdk.Duration.minutes(5),
+      // timeout: cdk.Duration.minutes(5),
       environment: {
         DEST_BUCKET: outputBucket.bucketName,
       },
@@ -89,7 +89,7 @@ export class OsenchiStack extends cdk.Stack {
       }),
       handler: 'index.handler',
       runtime: lambda.Runtime.NODEJS_12_X,
-    })
+    });
 
     inputBucket.grantRead(detectionFunc);
     outputBucket.grantWrite(detectionFunc);
@@ -122,7 +122,7 @@ export class OsenchiStack extends cdk.Stack {
 
     const stateMachine = new sfn.StateMachine(this, 'OsenchiStateMachine', {
       definition: parallel,
-      timeout: cdk.Duration.minutes(30)
+      // timeout: cdk.Duration.minutes(30)
     });
   
     const target = new targets.SfnStateMachine(stateMachine);
